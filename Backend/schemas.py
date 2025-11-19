@@ -9,6 +9,5 @@ class DetectionCreate(BaseModel):
 
 class DetectionResponse(DetectionCreate):
     id: int
-
     class Config:
         orm_mode = True
