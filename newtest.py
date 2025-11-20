@@ -8,16 +8,15 @@ import os
 import pytesseract
 from docx import Document
 from datetime import datetime
+import requests
 
-# ----------- CONFIG ----------- #
+# ----------- CONFIGURATION----------- #
 LPIPS_THRESHOLD = 0.1
 CHECK_INTERVAL = 5
 SAVE_FOLDER = "detected_changes"
-pytesseract.pytesseract.tesseract_cmd = r"D:\Tesseract-OCR\tesseract.exe"
+os.makedirs(SAVE_FOLDER, exist_ok=True)
 
-# ----------- CREATE SAVE FOLDER ----------- #
-if not os.path.exists(SAVE_FOLDER):
-    os.makedirs(SAVE_FOLDER)
+pytesseract.pytesseract.tesseract_cmd = r"C:\Users\G00420041@atu.ie\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"
 
 # ----------- LPIPS MODEL ----------- #
 loss_fn = lpips.LPIPS(net='alex')
@@ -25,7 +24,7 @@ loss_fn.eval()
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 loss_fn = loss_fn.to(device)
 
-# ----------- CONVERT CV2 -> LPIPS TENSOR ----------- #
+# ----------- UTILITY FUNCTIONS ----------- #
 def cv2_to_tensor(img):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     pil_img = Image.fromarray(img)
@@ -36,36 +35,35 @@ def cv2_to_tensor(img):
     ])
     return transform(pil_img).unsqueeze(0).to(device)
 
-# ----------- OCR FUNCTION ----------- #
 def extract_text_from_image(image_path):
     image = cv2.imread(image_path)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    # Thresholding for better OCR
     gray = cv2.threshold(gray, 0,255,cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
-
-    # Temp file
     temp_file = "temp_ocr.jpg"
     cv2.imwrite(temp_file, gray)
-
     text = pytesseract.image_to_string(Image.open(temp_file))
     os.remove(temp_file)
     return text
 
-# ----------- WRITE TO WORD DOC ----------- #
 def write_to_word(timestamp, text):
+    filename = f"Camera_Detection_{timestamp.replace(':','-')}.docx"
     doc = Document()
     doc.add_heading("Camera Change Detection", level=1)
-
     doc.add_paragraph(f"Time detected: {timestamp}")
     doc.add_paragraph("Extracted text:")
     doc.add_paragraph(text)
-
-    filename = f"Camera_Detection_{timestamp.replace(':','-')}.docx"
     doc.save(filename)
     print(f">>> Word document saved as: {filename}")
+    return filename
 
-# ----------- CAMERA SETUP ----------- #
+def upload_word_doc(file_path):
+    url = "http://127.0.0.1:8000/upload_word/"
+    with open(file_path, "rb") as f:
+        files = {"file": (os.path.basename(file_path), f, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")}
+        response = requests.post(url, files=files)
+    print("Upload response:", response.json())
+
+# ----------- MY CAMERA SETUP ----------- #
 cap = cv2.VideoCapture(0)
 if not cap.isOpened():
     raise RuntimeError("Cannot open camera")
@@ -84,7 +82,6 @@ while True:
 
     cv2.imshow("Camera Feed", frame)
 
-    # Run LPIPS comparison at fixed intervals
     if time.time() - last_check >= CHECK_INTERVAL:
         last_check = time.time()
         curr_tensor = cv2_to_tensor(frame)
@@ -95,21 +92,16 @@ while True:
 
             if dist > LPIPS_THRESHOLD:
                 print(">>> CHANGE DETECTED <<<")
-
                 timestamp = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
                 image_file = os.path.join(SAVE_FOLDER, f"change_{timestamp}.jpg")
-
-                # Save the changed frame
                 cv2.imwrite(image_file, frame)
                 print(f"Saved changed frame: {image_file}")
 
-                # OCR
                 extracted_text = extract_text_from_image(image_file)
-                print("Extracted text:")
-                print(extracted_text)
+                print("Extracted text:\n", extracted_text)
 
-                # Write Word document
-                write_to_word(timestamp, extracted_text)
+                word_file = write_to_word(timestamp, extracted_text)
+                upload_word_doc(word_file)
             else:
                 print("No significant change")
 
