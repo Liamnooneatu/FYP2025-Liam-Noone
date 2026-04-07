@@ -1,0 +1,10 @@
+timestamp,ocr_result,ocr_mode,roi
+2026-03-13 11:51:18,25.5 RETURN AIR,alpha+num,polygon 6pt
+2026-03-13 11:54:24,25.0 SETPOINT,alpha+num,polygon 6pt
+2026-03-13 11:57:17,25.0 SETPOINT,alpha+num,polygon 6pt
+2026-03-13 11:57:22,25.0 SETPOINT,alpha+num,polygon 6pt
+2026-03-13 11:57:27,25.0 SETPOINT,alpha+num,polygon 6pt
+2026-03-13 11:57:42,25.0 SETPOINT,alpha+num,polygon 6pt
+2026-03-13 11:57:47,25.0 SETPOINT,alpha+num,polygon 6pt
+2026-03-13 11:57:52,25. SETPOINT,alpha+num,polygon 6pt
+2026-03-13 11:57:57,25.0 SETPOINT,alpha+num,polygon 6pt
